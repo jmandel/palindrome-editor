@@ -110,23 +110,21 @@
             function findMirrorIndex(normalIndex, text, insert) {
 
                 const alphabeticText = alphabetOnly(text)
-                const rawIndexToAlphabeticIndex = Object.fromEntries(text.split("").reduce((acc, ch, i) => acc.concat(ch.match(/[a-z]/) ? [[i, acc.length]] : []), [] ))
+                const rawIndexToAlphabeticIndex = Object.fromEntries(text.split("").reduce((acc, ch, i) => acc.concat(ch.match(/[a-z]/) ? [[i, acc.length]] : []), []))
                 const alphabeticIndexToRawIndex = Object.fromEntries(Object.entries(rawIndexToAlphabeticIndex).map(([k, v]) => ([v, parseInt(k)])))
 
                 const fromHeadAlphabetic = rawIndexToAlphabeticIndex[normalIndex];
                 const fromTailAlphabetic = alphabeticText.length - fromHeadAlphabetic - 1;
 
-                return fromHeadAlphabetic <= fromTailAlphabetic ? 
-                        [alphabeticIndexToRawIndex[fromTailAlphabetic], true] : 
-                        [alphabeticIndexToRawIndex[fromTailAlphabetic], false] 
+                return [alphabeticIndexToRawIndex[fromTailAlphabetic], fromHeadAlphabetic <= fromTailAlphabetic]
             }
 
             if (edit.change === 'insert') {
                 const [mirror, firstHalf] = findMirrorIndex(edit.current.span[0], edit.current.text, true)
                 const s = textarea.selectionStart;
-                textarea.selectionStart = textarea.selectionEnd = s
                 if (firstHalf) {
                     textarea.value = textarea.value.slice(0, mirror + 1) + currSpan + textarea.value.slice(mirror + 1,)
+                    textarea.selectionStart = textarea.selectionEnd = s
                 } else {
                     textarea.value = textarea.value.slice(0, mirror) + currSpan + textarea.value.slice(mirror,)
                     textarea.selectionStart = textarea.selectionEnd = s + 1
@@ -136,6 +134,7 @@
                 const s = textarea.selectionStart;
                 if (firstHalf) {
                     textarea.value = textarea.value.slice(0, mirror - 1) + textarea.value.slice(mirror,)
+                    textarea.selectionStart = textarea.selectionEnd = s
                 } else {
                     textarea.value = textarea.value.slice(0, mirror) + textarea.value.slice(mirror + 1,)
                     textarea.selectionStart = textarea.selectionEnd = s - 1
