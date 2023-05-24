@@ -24,16 +24,23 @@
 </head>
 
 <body>
-    <textarea id="input" rows="4" cols="50"></textarea>
+
+    <textarea spellcheck="false" id="input" rows="4" cols="50"></textarea>
 
     <script type="text/javascript">
 
         function charEdits(handler, initial = "") {
             let lastValue = initial;
 
-            return function (event) {
+            const ret = function (event) {
                 const textarea = event.target;
                 const currentValue = textarea.value;
+
+                if (Math.abs(currentValue.length - lastValue.length) > 1 && currentValue.length !== 0) {
+                    event.target.value = lastValue;
+                    console.log("Cannot safely apply change.")
+                    return;
+                }
 
                 let change = null;
                 let start = 0;
@@ -76,6 +83,8 @@
                     update: (v) => { lastValue = v }
                 });
             }
+            ret.reset = (initial) => { lastValue = initial; }
+            return ret;
         }
 
         function alphabetOnly(v) {
@@ -99,43 +108,25 @@
             // Find the index of the change in the alphabetic text
 
             function findMirrorIndex(normalIndex, text, insert) {
-                const alphabeticText = alphabetOnly(text);
-                let alphaIndex = 0;
-                for (let i = 0; i < normalIndex; i++) {
-                    if (text[i].match(/[a-z]/)) {
-                        alphaIndex++;
-                    }
-                }
 
-                let fromStart = alphaIndex;
-                let fromEnd = alphabeticText.length - alphaIndex - 1;
+                const alphabeticText = alphabetOnly(text)
+                const rawIndexToAlphabeticIndex = Object.fromEntries(text.split("").reduce((acc, ch, i) => acc.concat(ch.match(/[a-z]/) ? [[i, acc.length]] : []), [] ))
+                const alphabeticIndexToRawIndex = Object.fromEntries(Object.entries(rawIndexToAlphabeticIndex).map(([k, v]) => ([v, parseInt(k)])))
 
-                function countFrom(anchorIndex, step) {
-                    let steps = 0;
-                    for (let i = step === 1 ? 0 : text.length - 1; step === 1 ? i < text.length : i >= 0; i += step) {
-                        if (text[i].match(/[a-z]/)) {
-                            if (steps === anchorIndex) {
-                                return i;
-                            }
-                            steps++;
-                        }
-                    }
-                    return -1;
-                }
+                const fromHeadAlphabetic = rawIndexToAlphabeticIndex[normalIndex];
+                const fromTailAlphabetic = alphabeticText.length - fromHeadAlphabetic - 1;
 
-                if (fromStart < fromEnd || (fromStart == fromEnd)) {
-                    return [countFrom(fromStart, -1), true]
-                } else {
-                    return [countFrom(fromEnd, 1), false]
-                }
+                return fromHeadAlphabetic <= fromTailAlphabetic ? 
+                        [alphabeticIndexToRawIndex[fromTailAlphabetic], true] : 
+                        [alphabeticIndexToRawIndex[fromTailAlphabetic], false] 
             }
 
             if (edit.change === 'insert') {
                 const [mirror, firstHalf] = findMirrorIndex(edit.current.span[0], edit.current.text, true)
                 const s = textarea.selectionStart;
+                textarea.selectionStart = textarea.selectionEnd = s
                 if (firstHalf) {
                     textarea.value = textarea.value.slice(0, mirror + 1) + currSpan + textarea.value.slice(mirror + 1,)
-                    textarea.selectionStart = textarea.selectionEnd = s
                 } else {
                     textarea.value = textarea.value.slice(0, mirror) + currSpan + textarea.value.slice(mirror,)
                     textarea.selectionStart = textarea.selectionEnd = s + 1
@@ -145,7 +136,6 @@
                 const s = textarea.selectionStart;
                 if (firstHalf) {
                     textarea.value = textarea.value.slice(0, mirror - 1) + textarea.value.slice(mirror,)
-                    textarea.selectionStart = textarea.selectionEnd = s
                 } else {
                     textarea.value = textarea.value.slice(0, mirror) + textarea.value.slice(mirror + 1,)
                     textarea.selectionStart = textarea.selectionEnd = s - 1
